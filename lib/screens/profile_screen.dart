@@ -1,4 +1,3 @@
-// screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
@@ -58,14 +57,14 @@ class ProfileScreen extends StatelessWidget {
             Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.blue,
                 shape: BoxShape.circle,
               ),
-              child: Center(
+              child: const Center(
                 child: Text(
                   'RM',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 24,
@@ -191,7 +190,7 @@ class ProfileScreen extends StatelessWidget {
   Widget _buildPortfolioSummary(Map<String, dynamic> stats) {
     // Calculate some financial stats
     final totalAssets = stats['netWorth'] - stats['cash'];
-    final dailyROI = stats['dailyIncome'] / totalAssets * 100;
+    final dailyROI = totalAssets > 0 ? stats['dailyIncome'] / totalAssets * 100 : 0;
     final annualROI = dailyROI * 365;
     
     return Column(
@@ -659,7 +658,6 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('About Real Estate Empire'),
-       // Continuing screens/profile_screen.dart
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,11 +6,13 @@ import '../services/database_service.dart';
 import '../models/game_constants.dart';
 import 'player_provider.dart';
 import 'property_provider.dart';
+import 'loan_provider.dart'; // Add import for LoanProvider
 
 class GameProvider with ChangeNotifier {
   final DatabaseService _databaseService;
   PlayerProvider playerProvider;
   PropertyProvider propertyProvider;
+  LoanProvider loanProvider; // Add LoanProvider
   
   bool _isFirstLaunch = false;
   Map<String, bool> _unlockedFeatures = {};
@@ -19,15 +21,17 @@ class GameProvider with ChangeNotifier {
   GameProvider({
     required this.playerProvider,
     required this.propertyProvider,
+    required this.loanProvider, // Add LoanProvider parameter
     required DatabaseService databaseService,
   }) : _databaseService = databaseService {
     _initialize();
   }
   
   // Update references to providers
-  void update(PlayerProvider playerProvider, PropertyProvider propertyProvider) {
+  void update(PlayerProvider playerProvider, PropertyProvider propertyProvider, LoanProvider loanProvider) {
     this.playerProvider = playerProvider;
     this.propertyProvider = propertyProvider;
+    this.loanProvider = loanProvider; // Update LoanProvider reference
   }
   
   // Getters
@@ -96,8 +100,21 @@ class GameProvider with ChangeNotifier {
     
     // Calculate offline income
     final offlineIncome = propertyProvider.calculatePendingIncome();
-    if (offlineIncome > 0) {
-      await playerProvider.addMoney(offlineIncome);
+    
+    // Process loan payments (if any time has passed)
+    double loanPayments = 0;
+    if (timeDiff.inDays > 0) {
+      // Process one month of payments for each month that passed
+      for (int i = 0; i < (timeDiff.inDays / 30).floor(); i++) {
+        final payment = await loanProvider.processMonthlyPayments();
+        loanPayments += payment;
+      }
+    }
+    
+    // Add income and subtract loan payments
+    final netIncome = offlineIncome - loanPayments;
+    if (netIncome != 0) {
+      await playerProvider.addMoney(netIncome);
     }
     
     // Update last update time
@@ -119,6 +136,11 @@ class GameProvider with ChangeNotifier {
       if (playerLevel >= requiredLevel && !_unlockedFeatures.containsKey(feature)) {
         _unlockedFeatures[feature] = true;
       }
+    }
+    
+    // Unlock finance features at level 2
+    if (playerLevel >= 2 && !_unlockedFeatures.containsKey('finance')) {
+      _unlockedFeatures['finance'] = true;
     }
   }
   
@@ -152,6 +174,13 @@ class GameProvider with ChangeNotifier {
     
     // Update construction progress
     await propertyProvider.updateConstructionProgress();
+    
+    // Check if any loan payments are due
+    final duePayment = await loanProvider.processMonthlyPayments();
+    if (duePayment > 0) {
+      // Process payment from player's cash
+      await playerProvider.spendMoney(duePayment);
+    }
     
     // Update last update time and save
     _lastUpdateTime = now;
@@ -379,6 +408,45 @@ class GameProvider with ChangeNotifier {
     return success;
   }
   
+  // Handle loan application
+  Future<bool> applyForLoan(String bankId, double amount) async {
+    // Check if player can qualify for loan
+    final stats = getPlayerStats();
+    final maxLoanAmount = loanProvider.getMaxLoanAmount(bankId, stats['netWorth']);
+    
+    if (amount <= 0 || amount > maxLoanAmount) return false;
+    
+    // Process loan application
+    final success = await loanProvider.createLoan(bankId, amount);
+    
+    if (success) {
+      // Add loan amount to player's cash
+      await playerProvider.addMoney(amount);
+      
+      notifyListeners();
+    }
+    
+    return success;
+  }
+  
+  // Handle loan payment
+  Future<bool> makeEarlyLoanPayment(String loanId, double amount) async {
+    // Check if player can afford payment
+    if (!playerProvider.canAfford(amount)) return false;
+    
+    // Process payment
+    final success = await loanProvider.makeEarlyPayment(loanId, amount);
+    
+    if (success) {
+      // Deduct payment from player's cash
+      await playerProvider.spendMoney(amount);
+      
+      notifyListeners();
+    }
+    
+    return success;
+  }
+  
   // Get player stats for dashboard
   Map<String, dynamic> getPlayerStats() {
     if (!playerProvider.isPlayerInitialized) {
@@ -392,6 +460,9 @@ class GameProvider with ChangeNotifier {
         'buildings': 0,
         'dailyIncome': 0.0,
         'pendingIncome': 0.0,
+        'totalDebt': 0.0,
+        'monthlyPayment': 0.0,
+        'debtToIncomeRatio': 0.0,
       };
     }
     
@@ -403,6 +474,11 @@ class GameProvider with ChangeNotifier {
     final dailyIncome = propertyProvider.calculateDailyIncome();
     final pendingIncome = propertyProvider.calculatePendingIncome();
     
+    // Get loan stats
+    final totalDebt = loanProvider.totalDebt;
+    final monthlyPayment = loanProvider.totalMonthlyPayment;
+    final debtToIncomeRatio = loanProvider.calculateDebtToIncomeRatio(dailyIncome);
+    
     return {
       'level': player.level,
       'experience': player.experience,
@@ -413,6 +489,9 @@ class GameProvider with ChangeNotifier {
       'buildings': buildingsCount,
       'dailyIncome': dailyIncome,
       'pendingIncome': pendingIncome,
+      'totalDebt': totalDebt,
+      'monthlyPayment': monthlyPayment,
+      'debtToIncomeRatio': debtToIncomeRatio,
     };
   }
   

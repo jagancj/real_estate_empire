@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/dashboard_screen.dart';
-// import 'screens/property_list_screen.dart';
-// import 'screens/market_screen.dart';
-// import 'screens/land_development_screen.dart';
-// import 'screens/profile_screen.dart';
+import 'screens/property_list_screen.dart';
+import 'screens/market_screen.dart';
+import 'screens/land_development_screen.dart';
+import 'screens/profile_screen.dart';
 import 'providers/game_provider.dart';
 final GlobalKey<MainNavigationScreenState> navigationKey = GlobalKey<MainNavigationScreenState>();
 
@@ -75,20 +75,18 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
   
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const DashboardScreen(),
-    const DashboardScreen(),
-    const DashboardScreen(),
-    const DashboardScreen()
-    // const PropertyListScreen(),
-    // const MarketScreen(),
-    // const LandDevelopmentScreen(),
-    // const ProfileScreen(),
+    const PropertyListScreen(),
+    const MarketScreen(),
+    const LandDevelopmentScreen(),
+    const ProfileScreen(),
   ];
+  
   void setCurrentIndex(int index) {
     setState(() {
       _currentIndex = index;
     });
   }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(

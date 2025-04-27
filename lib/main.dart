@@ -5,6 +5,7 @@ import 'app.dart';
 import 'providers/game_provider.dart';
 import 'providers/player_provider.dart';
 import 'providers/property_provider.dart';
+import 'providers/loan_provider.dart'; // Add import for new provider
 import 'services/database_service.dart';
 
 void main() async {
@@ -25,14 +26,16 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => PlayerProvider(databaseService)),
         ChangeNotifierProvider(create: (_) => PropertyProvider(databaseService)),
-        ChangeNotifierProxyProvider2<PlayerProvider, PropertyProvider, GameProvider>(
+        ChangeNotifierProvider(create: (_) => LoanProvider(databaseService)), // Add LoanProvider
+        ChangeNotifierProxyProvider3<PlayerProvider, PropertyProvider, LoanProvider, GameProvider>(
           create: (context) => GameProvider(
             playerProvider: Provider.of<PlayerProvider>(context, listen: false),
             propertyProvider: Provider.of<PropertyProvider>(context, listen: false),
+            loanProvider: Provider.of<LoanProvider>(context, listen: false), // Pass LoanProvider
             databaseService: databaseService,
           ),
-          update: (context, playerProvider, propertyProvider, previous) =>
-            previous!..update(playerProvider, propertyProvider),
+          update: (context, playerProvider, propertyProvider, loanProvider, previous) =>
+            previous!..update(playerProvider, propertyProvider, loanProvider),
         ),
       ],
       child: const RealEstateEmpireApp(),

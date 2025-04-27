@@ -1,7 +1,6 @@
-// screens/property_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:real_estate_empire/models/building_model.dart';
+import '../models/building_model.dart';
 import '../app.dart';
 import '../providers/game_provider.dart';
 import '../widgets/property/property_card.dart';

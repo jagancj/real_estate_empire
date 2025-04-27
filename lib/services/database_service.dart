@@ -3,7 +3,7 @@ import 'package:path/path.dart';
 
 class DatabaseService {
   static const String databaseName = 'real_estate_empire.db';
-  static const int databaseVersion = 1;
+  static const int databaseVersion = 2; // Incremented version for schema change
   
   // Table names
   static const String tablePlayer = 'player';
@@ -11,6 +11,7 @@ class DatabaseService {
   static const String tableLandParcels = 'land_parcels';
   static const String tableBuildings = 'buildings';
   static const String tableGameState = 'game_state';
+  static const String tableLoans = 'loans'; // New table for loans
   
   Database? _database;
   
@@ -119,12 +120,43 @@ class DatabaseService {
         lastUpdateTime TEXT NOT NULL
       )
     ''');
+    
+    // Loans table
+    await db.execute('''
+      CREATE TABLE $tableLoans (
+        id TEXT PRIMARY KEY,
+        bankName TEXT NOT NULL,
+        originalAmount REAL NOT NULL,
+        remainingAmount REAL NOT NULL,
+        interestRate REAL NOT NULL,
+        totalMonths INTEGER NOT NULL,
+        remainingMonths INTEGER NOT NULL,
+        monthlyPayment REAL NOT NULL,
+        startDate TEXT NOT NULL,
+        dueDate TEXT NOT NULL
+      )
+    ''');
   }
   
   // Upgrade database
   Future<void> _upgradeDatabase(Database db, int oldVersion, int newVersion) async {
-    // No upgrades needed for initial version
-    // Will be implemented in future versions
+    if (oldVersion < 2) {
+      // Add loans table if upgrading from version 1
+      await db.execute('''
+        CREATE TABLE $tableLoans (
+          id TEXT PRIMARY KEY,
+          bankName TEXT NOT NULL,
+          originalAmount REAL NOT NULL,
+          remainingAmount REAL NOT NULL,
+          interestRate REAL NOT NULL,
+          totalMonths INTEGER NOT NULL,
+          remainingMonths INTEGER NOT NULL,
+          monthlyPayment REAL NOT NULL,
+          startDate TEXT NOT NULL,
+          dueDate TEXT NOT NULL
+        )
+      ''');
+    }
   }
   
   // PLAYER OPERATIONS
@@ -289,6 +321,40 @@ class DatabaseService {
     }
   }
   
+  // LOAN OPERATIONS
+  
+  // Get all loans
+  Future<List<Map<String, dynamic>>> getLoans() async {
+    final db = _database;
+    if (db == null) return [];
+    
+    return await db.query(tableLoans);
+  }
+  
+  // Save loan
+  Future<void> saveLoan(Map<String, dynamic> loanData) async {
+    final db = _database;
+    if (db == null) return;
+    
+    await db.insert(
+      tableLoans,
+      loanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+  
+  // Delete loan
+  Future<void> deleteLoan(String id) async {
+    final db = _database;
+    if (db == null) return;
+    
+    await db.delete(
+      tableLoans,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+  
   // Clear all data (for testing/reset)
   Future<void> clearAllData() async {
     final db = _database;
@@ -299,5 +365,6 @@ class DatabaseService {
     await db.delete(tableLandParcels);
     await db.delete(tableBuildings);
     await db.delete(tableGameState);
+    await db.delete(tableLoans);
   }
 }
